@@ -49,7 +49,7 @@ requires-dist = [
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.6" },
     { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.0.53,<3" },
     { name = "structlog", specifier = ">=25.2" },
-    { name = "universal-agent-contracts", editable = "../agent-contracts" },
+    { name = "universal-agent-contracts", editable = "vendor/agent-contracts" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.53" },
 ]
 provides-extras = ["dev", "otel"]
@@ -1063,7 +1063,7 @@ wheels = [
 [[package]]
 name = "universal-agent-contracts"
 version = "0.1.0"
-source = { editable = "../agent-contracts" }
+source = { editable = "vendor/agent-contracts" }
 dependencies = [
     { name = "pydantic" },
 ]

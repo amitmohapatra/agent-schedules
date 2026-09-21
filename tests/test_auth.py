@@ -31,9 +31,7 @@ def _production() -> Settings:
     """A configuration the startup check accepts outside dev."""
     return Settings(
         database=DatabaseSettings(url=DB_URL),
-        service=ServiceSettings(
-            environment="prod", auth_mode="api_key", api_keys=dict(PROD_KEYS)
-        ),
+        service=ServiceSettings(environment="prod", auth_mode="api_key", api_keys=dict(PROD_KEYS)),
         runs=RunsSettings(api_key="a-real-prod-key"),
     )
 
@@ -90,9 +88,7 @@ async def test_authentication_does_not_depend_on_the_auth_mode(client) -> None:
         assert (await anonymous.get("/v1/schedules")).status_code == 401
         assert (await anonymous.post("/v1/schedules", json=scheduled())).status_code == 401
     assert (await client.get("/v1/schedules", headers={"X-Api-Key": "nope"})).status_code == 401
-    assert (
-        await client.get("/v1/schedules", headers={"X-Api-Key": "prod-key"})
-    ).status_code == 200
+    assert (await client.get("/v1/schedules", headers={"X-Api-Key": "prod-key"})).status_code == 200
 
 
 async def test_the_tenant_comes_from_the_credential_not_from_a_header(client) -> None:
@@ -112,9 +108,7 @@ async def test_a_credential_cannot_speak_for_another_tenant(client, other_tenant
     """The flat key list was the bug: any valid key plus a chosen header was any tenant, so
     one customer could read another's schedules, see the identities they run as, and fire
     them — and no test could catch it, because both tenants held the same secret."""
-    theirs = (
-        await other_tenant.post("/v1/schedules", json=scheduled(tenant_id="globex"))
-    ).json()
+    theirs = (await other_tenant.post("/v1/schedules", json=scheduled(tenant_id="globex"))).json()
 
     borrowed = {"X-Tenant-Id": "globex"}
     assert (await client.get("/v1/schedules", headers=borrowed)).status_code == 403
@@ -169,9 +163,7 @@ async def test_created_by_is_written_from_the_credential_not_from_the_body(narro
     )
     assert refused.status_code == 422
 
-    created = (
-        await narrow.post("/v1/schedules", json=scheduled(on_behalf_of="user_bob"))
-    ).json()
+    created = (await narrow.post("/v1/schedules", json=scheduled(on_behalf_of="user_bob"))).json()
     assert created["created_by"] == "user_bob"
 
 

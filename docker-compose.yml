@@ -1,0 +1,83 @@
+# The API, the ticker, and the database.
+#
+# The ticker is a *separate service* on purpose: a loop inside the API would fire once per
+# API replica, so scaling the API would multiply every schedule. Here the API scales on
+# request load and the ticker does not scale at all — one is plenty, and a second is
+# harmless because a fire is idempotent on (schedule_id, fire_time).
+
+name: agent-schedules
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: memory
+      POSTGRES_PASSWORD: memory
+      POSTGRES_DB: agent_schedules
+    ports:
+      - "${SCHEDULES_DB_PORT:-5443}:5432"
+    volumes:
+      - schedules-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U memory -d agent_schedules"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build: .
+    environment:
+      SCHEDULES__DATABASE__URL: postgresql+psycopg://memory:memory@postgres:5432/agent_schedules
+      SCHEDULES__SERVICE__PORT: "8092"
+      SCHEDULES__SERVICE__ENVIRONMENT: dev
+      # host.docker.internal: agent-runs is its own compose stack, not a service here.
+      SCHEDULES__RUNS__URL: ${SCHEDULES_RUNS_URL:-http://host.docker.internal:8090}
+      # The two services authenticate their own callers, so a schedule firing for tenant X
+      # needs a credential for tenant X *in agent-runs too*. The library defaults disagree
+      # ("dev" here, "acme" there) and a fired run then dies on a 403 that looks like a
+      # schedules bug. Aligned here, where the stack is actually wired together.
+      SCHEDULES__SERVICE__API_KEYS: >-
+        {"dev-key": {"tenant_id": "acme", "principal": "dev-user", "may_act_as": ["*"]}}
+      SCHEDULES__OBSERVABILITY__LOG_JSON: "true"
+    env_file:
+      - path: .env
+        required: false
+    ports:
+      - "${SCHEDULES_PORT:-8092}:8092"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  ticker:
+    build: .
+    command: ["python", "-m", "agent_schedules.ticker"]
+    environment:
+      # It drives the public API, so it needs no database of its own. "api" is the service
+      # name — localhost inside a container is the container.
+      SCHEDULES__TICKER__URL: http://api:8092
+      SCHEDULES__TICKER__INTERVAL_SECONDS: "60"
+      SCHEDULES__OBSERVABILITY__LOG_JSON: "true"
+      # Unused by the ticker itself, but Settings() validates the whole object at startup.
+      SCHEDULES__DATABASE__URL: postgresql+psycopg://memory:memory@postgres:5432/agent_schedules
+    env_file:
+      - path: .env
+        required: false
+    depends_on:
+      api:
+        condition: service_started
+    healthcheck:
+      # Not the image's HTTP probe: the ticker serves no port, so it inherited a check it
+      # could never pass and reported unhealthy while working perfectly. What matters for a
+      # loop is whether it is still going round, which the heartbeat file answers.
+      test: ["CMD", "python", "-m", "agent_schedules.ticker", "--probe"]
+      interval: 30s
+      timeout: 5s
+      start_period: 90s
+      retries: 3
+    restart: unless-stopped
+
+volumes:
+  schedules-db:

@@ -166,9 +166,7 @@ async def fire(
     await _may_administer(schedule_id, db, who)
     request = body or FireRequest()
     try:
-        result = await firing.fire(
-            who.tenant_id, schedule_id, at=request.at, now=datetime.now(UTC)
-        )
+        result = await firing.fire(who.tenant_id, schedule_id, at=request.at, now=datetime.now(UTC))
     except ScheduleNotFound as exc:
         raise HTTPException(_NOT_FOUND, str(exc)) from exc
     except FireTimeOutOfRange as exc:
@@ -213,8 +211,7 @@ async def _may_administer(schedule_id: str, db: Session, who: Caller) -> Schedul
     if not who.may_schedule_for(schedule.on_behalf_of):
         raise HTTPException(
             _FORBIDDEN,
-            f"this credential may not act on a schedule that runs as "
-            f"{schedule.on_behalf_of!r}",
+            f"this credential may not act on a schedule that runs as {schedule.on_behalf_of!r}",
         )
     return schedule
 

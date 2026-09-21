@@ -48,11 +48,7 @@ class Credential(BaseModel):
 
     def may_schedule_for(self, principal: str) -> bool:
         """Whether this credential may make runs execute as ``principal``."""
-        return (
-            principal == self.principal
-            or "*" in self.may_act_as
-            or principal in self.may_act_as
-        )
+        return principal == self.principal or "*" in self.may_act_as or principal in self.may_act_as
 
 
 def _dev_credentials() -> dict[str, Credential]:
@@ -85,8 +81,49 @@ class RunsSettings(BaseModel):
     timeout_seconds: float = 10.0
 
 
+class TickerSettings(BaseModel):
+    """The loop that makes schedules actually fire.
+
+    It lives outside the API process on purpose: a loop inside the API would fire once per
+    replica, and the deployment that most needs its schedules fired is the busiest one.
+    Running it as its own process means the API scales on request load and the ticker scales
+    on nothing at all — one is plenty, and a second is harmless because a fire is idempotent
+    on ``(schedule_id, fire_time)``.
+    """
+
+    #: How often to ask what is due. The floor on how late a schedule can fire, so it wants
+    #: to be well under the one-run-per-hour granularity the cadence rules already impose.
+    interval_seconds: float = 60.0
+    #: How many due schedules to claim per tick. The API caps this at 500.
+    batch_size: int = 100
+    #: Where the schedules API is. In compose this is the service name, not localhost.
+    url: str = "http://localhost:8092"
+    api_key: str = "dev-key"
+    timeout_seconds: float = 30.0
+    #: Consecutive tick failures (the *whole* tick, not one schedule) before the ticker stops
+    #: calling and waits. Without it a schedules API that is down turns into a tight retry
+    #: loop against a service that is already struggling.
+    breaker_threshold: int = 5
+    #: How long the breaker stays open before one trial tick is allowed through.
+    breaker_cooldown_seconds: float = 120.0
+
+    #: Touched after every tick, successful or not. A ticker has no port to probe, and the
+    #: failure that matters is not the process dying — the orchestrator already restarts
+    #: that — but the loop *hanging* while the process stays up. A file whose mtime stops
+    #: advancing is the only liveness signal that distinguishes those two.
+    #: Container-local, never shared: two tickers each prove their own loop.
+    heartbeat_path: str = "/tmp/ticker.heartbeat"
+    #: How stale the heartbeat may be before the probe calls it dead. Two intervals plus a
+    #: margin: one slow tick is not an outage.
+    heartbeat_max_age_seconds: float = 150.0
+
+
 class ServiceSettings(BaseModel):
     name: str = "agent-schedules"
+    #: Where uvicorn binds. In a container the port is chosen by whoever runs it, so it is
+    #: configuration (SCHEDULES__SERVICE__PORT), not a literal in the entry point.
+    host: str = "0.0.0.0"
+    port: int = 8092
     environment: str = "dev"
     #: Which credential table is in use. The key is verified in *every* mode; this only says
     #: whether the bundled dev credentials are the ones being trusted, and the startup check
@@ -108,6 +145,7 @@ class Settings(BaseSettings):
     )
 
     service: ServiceSettings = ServiceSettings()
+    ticker: TickerSettings = TickerSettings()
     database: DatabaseSettings = DatabaseSettings()
     observability: ObservabilitySettings = ObservabilitySettings()
     runs: RunsSettings = RunsSettings()

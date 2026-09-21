@@ -15,6 +15,7 @@ from agent_schedules.api.deps import Session
 from agent_schedules.api.routers import schedules
 from agent_schedules.clients.runs import RunsClient
 from agent_schedules.config.settings import Settings, get_settings
+from agent_schedules.observability.logging import configure_logging
 from agent_schedules.store.tables import Base
 
 log = structlog.get_logger(__name__)
@@ -22,6 +23,10 @@ log = structlog.get_logger(__name__)
 
 def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or get_settings()
+    # Before anything else logs: settings that nothing reads are not configuration.
+    configure_logging(
+        level=settings.observability.log_level, json_output=settings.observability.log_json
+    )
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
@@ -35,10 +40,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             # it comes back as "column does not exist" on the ticker's next query instead.
             # Additive and idempotent, which is the whole of what one table has ever needed.
             await conn.execute(
-                text(
-                    "ALTER TABLE agent_schedules "
-                    "ADD COLUMN IF NOT EXISTS retry_after TIMESTAMPTZ"
-                )
+                text("ALTER TABLE agent_schedules ADD COLUMN IF NOT EXISTS retry_after TIMESTAMPTZ")
             )
         http = httpx.AsyncClient(base_url=settings.runs.url, timeout=settings.runs.timeout_seconds)
         app.state.engine = engine

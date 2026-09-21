@@ -9,7 +9,13 @@ from agent_schedules.config.settings import get_settings
 
 
 def main() -> None:
-    uvicorn.run(create_app(get_settings()), host="0.0.0.0", port=8092)
+    settings = get_settings()
+    uvicorn.run(
+        create_app(settings),
+        host=settings.service.host,
+        port=settings.service.port,
+        log_config=None,  # the service configures its own structured logging
+    )
 
 
 if __name__ == "__main__":
