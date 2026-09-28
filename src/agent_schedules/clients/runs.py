@@ -11,7 +11,7 @@ from datetime import datetime
 
 import httpx
 import structlog
-from universal_agent_contracts.errors import AgentError, ErrorCategory
+from trellis.contracts.errors import AgentError, ErrorCategory
 
 from agent_schedules.domain.models import Schedule
 

@@ -27,11 +27,11 @@ from pathlib import Path
 import pytest
 
 REPO = Path(__file__).resolve().parents[1]
-VENDORED = REPO / "vendor" / "agent-contracts" / "src" / "universal_agent_contracts"
+VENDORED = REPO / "vendor" / "agent-contracts" / "src" / "trellis" / "contracts"
 SOURCE = (
     Path(os.environ.get("CONTRACTS", REPO.parent / "agent-contracts"))
     / "src"
-    / "universal_agent_contracts"
+    / "trellis" / "contracts"
 )
 
 

@@ -13,7 +13,7 @@ dependencies = [
   "structlog>=25.2",
   "croniter>=6",
   "httpx>=0.28",
-  "universal-agent-contracts>=0.1",
+  "trellis-contracts>=0.2",
 ]
 
 [project.optional-dependencies]
@@ -28,7 +28,7 @@ agent-schedules = "agent_schedules.__main__:main"
 # Vendored by `make vendor`, not referenced as ../agent-contracts: a path outside the
 # repository is outside the Docker build context, so `uv sync --frozen` in an image
 # build fails with "Distribution not found" for a dependency that resolves fine locally.
-universal-agent-contracts = { path = "vendor/agent-contracts", editable = true }
+trellis-contracts = { path = "vendor/agent-contracts", editable = true }
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/agent_schedules"]
