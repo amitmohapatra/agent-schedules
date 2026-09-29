@@ -26,3 +26,19 @@ Using gstack skills: After install, skills like /qa, /ship, /review, /investigat
 and /browse are available. Use /browse for all web browsing (Aside first, the bundled gstack browser as fallback).
 Use the resolved install path above for gstack file paths
 (default: ~/.claude/skills/gstack).
+
+## Agent skills
+
+Matt Pocock's engineering skills are enabled via the `mattpocock-skills` plugin (`.claude/settings.json`); invoke them namespaced, e.g. `/mattpocock-skills:tdd`, so they don't collide with gstack's `/review` and `/retro`.
+
+### Issue tracker
+
+Issues live in this repo's GitHub Issues, via the `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default vocabulary: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: `GLOSSARY.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.
